@@ -6,11 +6,12 @@ from bs4 import BeautifulSoup
 
 
 class Scanner:
-    def __init__(self, url, ignore_links):
+    def __init__(self, url, ignore_links, payload_file_path):
         self.session = requests.Session()
         self.target_url = url
         self.target_links = []
         self.logout_link_remove = ignore_links
+        self.payload_file_path = payload_file_path
 
     def extract_links_from(self, url):
         response = self.session.get(url)
@@ -52,33 +53,43 @@ class Scanner:
             return self.session.post(post_url, data=post_data)
         return self.session.get(post_url, params=post_data)
 
+    def read_file(self):
+        """
+        Reads all payloads in a text file separated by a new line "\n"
+        Uses the file path defined in the [self.__init__] method
+        :return: List<String> of payloads input
+        """
+        with open(self.payload_file_path, 'r') as file:
+            return file.readlines()
+
     def run_scanner(self):
         for link in self.target_links:
             forms = self.extract_forms(link)
+            payloads = self.read_file()
             for form in forms:
                 print(" Testing Started " + link)
-                is_vulnerable_to_xss = self.test_xss_in_form(form, link)
-                if is_vulnerable_to_xss:
-                    print("XSS Found in  " + link + "In the following form")
-                    print(form)
+                for payload in payloads:
+                    is_vulnerable_to_xss = self.test_xss_in_form(form, link, payload)
+                    if is_vulnerable_to_xss:
+                        print("XSS Found in  " + link + "In the following form")
+                        print(form)
 
             if "=" in link:
                 print("Testing for " + link)
-                is_vulnerable_to_xss = self.test_xss_in_link(link)
-                if is_vulnerable_to_xss:
-                    print("XSS Found in link " + link)
+                for payload in payloads:
+                    is_vulnerable_to_xss = self.test_xss_in_link(link, payload)
+                    if is_vulnerable_to_xss:
+                        print("XSS Found in link " + link)
 
-    def test_xss_in_link(self, url):
-        xss_test_script = "<script>alert(1)</script>"
-        url = url.replace("=", "=" + xss_test_script)
+    def test_xss_in_link(self, url, payload):
+        url = url.replace("=", "=" + payload)
         response = self.session.get(url)
-        return xss_test_script in str(response.content)
+        return payload in str(response.content)
 
-    def test_xss_in_form(self, form, url):
-        xss_test_script = "<script>alert(1)</script>"
-        response = self.submit_form(form, xss_test_script, url)
-        if xss_test_script in str(response.content):
-            return xss_test_script in response.content
+    def test_xss_in_form(self, form, url, payload):
+        response = self.submit_form(form, payload, url)
+        if payload in str(response.content):
+            return payload in response.content
 
 
 if __name__ == '__main__':
@@ -86,7 +97,7 @@ if __name__ == '__main__':
     logout_link_remove = [target_url + "logout.php"]
     credentials = {"username": "admin", "password": "admin", "Login": "submit"}
 
-    vuln_scanner = Scanner(target_url, logout_link_remove)
+    vuln_scanner = Scanner(target_url, logout_link_remove, "path to txt file here")
     vuln_scanner.session.post(target_url + "/" + "login.php", data=credentials)
 
     vuln_scanner.crawl()
