@@ -1,5 +1,4 @@
-# XSS_Scan-
-Automation for XSS
+Automated scanner for SQLi and XSS
 
 STEPS 
 
